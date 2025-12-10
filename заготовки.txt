@@ -1,0 +1,60 @@
+#Модель экспоненциального сглаживания  y*(t+1)=ay(t)+(1-a)y*(t)
+
+alpha = 0.2
+
+# первое значение совпадает со значением временного ряда
+exp_smoothing = [passengers['Passengers'].iloc[0]]
+ 
+# в цикле for последовательно применяем формулу ко всем элементам ряда
+for i in range(1, len(passengers['Passengers'])):
+  exp_smoothing.append(alpha * passengers['Passengers'].iloc[i] + (1 - alpha) * exp_smoothing[i - 1])
+ 
+passengers['Plan']=exp_smoothing
+
+last_date = passengers.iloc[[-1]].index
+last_date = last_date + dt.timedelta(days=30)
+
+passengers = pd.concat([passengers,pd.DataFrame(index = last_date)])
+passengers.Plan = passengers.Plan.shift(1)
+
+
+
+#######################
+
+import warnings
+warnings.simplefilter(action = 'ignore', category = Warning)
+ 
+# обучим модель с соответствующими параметрами, SARIMAX(3, 0, 0)x(0, 1, 0, 12)
+# импортируем класс модели
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+ 
+# создадим объект этой модели
+model = SARIMAX(train, 
+                order = (3, 0, 0), 
+                seasonal_order = (0, 1, 0, 12))
+ 
+# применим метод .fit()
+result = model.fit()
+
+############################
+
+start = len(train)
+# и закончится в конце тестового
+end = len(train) + len(test) - 1
+  
+# применим метод .predict()
+predictions = result.predict(start, end)
+
+plt.plot(train, color = "black")
+plt.plot(test, color = "red")
+plt.plot(predictions, color = "green")
+ 
+# заголовок и подписи к осям
+plt.title("Обучающая выборка, тестовая выборка и тестовый прогноз")
+plt.ylabel('Количество пассажиров')
+plt.xlabel('Месяцы')
+ 
+# добавим сетку
+plt.grid()
+ 
+plt.show()
